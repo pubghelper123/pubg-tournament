@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ панел – WOW PUBG Турнир</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #eef2f3; padding: 20px; }
+    h1 { text-align: center; color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background: #34495e; color: white; }
+    input[type="number"] { width: 60px; }
+    button { padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Админ панел – WOW PUBG Турнир</h1>
+  <div id="playerTable">Зареждане на играчи...</div>
+  <button onclick="calculateWinner()">Изчисли победител</button>
+  <h2 id="winner"></h2>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCPY1EZ18WeBtxXHRY6Eu4OQooSRQZ5bZ4",
+      authDomain: "pubg-tournament-63f21.firebaseapp.com",
+      projectId: "pubg-tournament-63f21",
+      storageBucket: "pubg-tournament-63f21.firebasestorage.app",
+      messagingSenderId: "468944321496",
+      appId: "1:468944321496:web:73f70668e0febdb51050ad",
+      databaseURL: "https://pubg-tournament-63f21-default-rtdb.europe-west1.firebasedatabase.app"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const tableDiv = document.getElementById("playerTable");
+    const winnerEl = document.getElementById("winner");
+
+    function loadPlayers() {
+      db.ref("players").on("value", snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+          tableDiv.innerHTML = "<p>Няма записани играчи.</p>";
+          return;
+        }
+
+        let html = '<table><tr><th>PUBG ID</th><th>Име</th><th>Килове</th></tr>';
+        for (const key in data) {
+          const player = data[key];
+          html += `<tr>
+            <td>${player.pubgId}</td>
+            <td>${player.name || ""}</td>
+            <td>
+              <input type="number" id="kill-${key}" value="${player.kills || 0}" min="0">
+              <button onclick="saveKills('${key}')">💾</button>
+            </td>
+          </tr>`;
+        }
+        html += "</table>";
+        tableDiv.innerHTML = html;
+      });
+    }
+
+    function saveKills(playerId) {
+      const input = document.getElementById("kill-" + playerId);
+      const kills = parseInt(input.value) || 0;
+      db.ref("players/" + playerId).update({ kills });
+    }
+
+    function calculateWinner() {
+      db.ref("players").once("value", snapshot => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        let maxKills = -1;
+        let winners = [];
+
+        for (const key in data) {
+          const p = data[key];
+          const kills = p.kills || 0;
+          if (kills > maxKills) {
+            maxKills = kills;
+            winners = [p];
+          } else if (kills === maxKills) {
+            winners.push(p);
+          }
+        }
+
+        if (winners.length === 1) {
+          winnerEl.textContent = `Победител: ${winners[0].name || winners[0].pubgId} с ${maxKills} кила!`;
+        } else {
+          const names = winners.map(p => p.name || p.pubgId).join(", ");
+          winnerEl.textContent = `Равен резултат между: ${names}. Играй допълнителен мач (TDM).`;
+        }
+      });
+    }
+
+    loadPlayers();
+  </script>
+</body>
+</html>
