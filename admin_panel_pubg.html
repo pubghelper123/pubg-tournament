@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ панел – WOW PUBG</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #000 url('bg1.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      padding: 20px;
+      transition: background-image 0.5s ease-in-out;
+    }
+    h1 {
+      text-align: center;
+      color: white;
+      text-shadow: 0 0 10px white, 0 0 20px green, 0 0 30px red;
+    }
+    .glass {
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 10px;
+      text-align: center;
+    }
+    input[type="number"] {
+      width: 60px;
+      padding: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 10px;
+      cursor: pointer;
+      background: linear-gradient(to right, white, green, red);
+      color: black;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    .winner {
+      margin-top: 20px;
+      font-size: 20px;
+      text-align: center;
+      color: #0f0;
+      text-shadow: 0 0 10px white;
+    }
+    #musicToggle, #bgToggle {
+      margin-top: 15px;
+      padding: 5px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #222;
+      color: white;
+      border: 1px solid white;
+      border-radius: 5px;
+    }
+    audio {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Админ панел – WOW PUBG Турнир</h1>
+  <div class="glass">
+    <div id="tableContainer"></div>
+    <button onclick="exportCSV()">📥 Експортирай CSV</button>
+    <button onclick="calculateWinner()">🥇 Изчисли победител</button>
+    <div class="winner" id="winnerDisplay"></div>
+    <button id="musicToggle">🔈 Спри музиката</button>
+    <button id="bgToggle">🎨 Смени фона</button>
+  </div>
+
+  <audio id="bgMusic" autoplay loop>
+    <source src="music.mp3" type="audio/mpeg">
+  </audio>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCPY1EZ18WeBtxXHRY6Eu4OQooSRQZ5bZ4",
+      authDomain: "pubg-tournament-63f21.firebaseapp.com",
+      databaseURL: "https://pubg-tournament-63f21-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "pubg-tournament-63f21",
+      storageBucket: "pubg-tournament-63f21.appspot.com",
+      messagingSenderId: "468944321496",
+      appId: "1:468944321496:web:73f70668e0febdb51050ad"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let playersData = {};
+
+    db.ref("players").on("value", (snapshot) => {
+      const data = snapshot.val();
+      playersData = data || {};
+      renderTable(playersData);
+    });
+
+    function renderTable(data) {
+      let html = `<table><tr><th>PUBG ID</th><th>Име</th><th>Килове</th></tr>`;
+      Object.keys(data).forEach(id => {
+        const p = data[id];
+        html += `<tr>
+          <td>${p.pubgId}</td>
+          <td>${p.name || ''}</td>
+          <td><input type="number" id="kills_${id}" value="${p.kills || 0}" /></td>
+        </tr>`;
+      });
+      html += `</table>`;
+      document.getElementById("tableContainer").innerHTML = html;
+    }
+
+    function exportCSV() {
+      let csv = "PUBG ID,Име,Килове\n";
+      Object.keys(playersData).forEach(id => {
+        const p = playersData[id];
+        const kills = document.getElementById(`kills_${id}`)?.value || 0;
+        csv += `${p.pubgId},${p.name || ''},${kills}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "players.csv";
+      link.click();
+    }
+
+    function calculateWinner() {
+      let topId = null;
+      let maxKills = -1;
+      Object.keys(playersData).forEach(id => {
+        const kills = parseInt(document.getElementById(`kills_${id}`)?.value || 0);
+        if (kills > maxKills) {
+          maxKills = kills;
+          topId = id;
+        }
+      });
+      if (topId) {
+        const winner = playersData[topId];
+        document.getElementById("winnerDisplay").innerHTML = `🏆 Победител: <strong>${winner.name || winner.pubgId}</strong> с <strong>${maxKills}</strong> килa!`;
+      } else {
+        document.getElementById("winnerDisplay").innerText = "Няма въведени килове.";
+      }
+    }
+
+    const music = document.getElementById("bgMusic");
+    const musicToggle = document.getElementById("musicToggle");
+    const bgToggle = document.getElementById("bgToggle");
+
+    musicToggle.addEventListener("click", () => {
+      if (music.paused) {
+        music.play();
+        musicToggle.textContent = "🔈 Спри музиката";
+      } else {
+        music.pause();
+        musicToggle.textContent = "🔇 Пусни музиката";
+      }
+    });
+
+    const backgrounds = ["bg1.jpg", "bg2.jpg", "bg3.jpg", "bg4.jpg", "bg5.jpg", "bg6.jpg"];
+    let currentBg = 0;
+    bgToggle.addEventListener("click", () => {
+      currentBg = (currentBg + 1) % backgrounds.length;
+      document.body.style.backgroundImage = `url('${backgrounds[currentBg]}')`;
+    });
+  </script>
+</body>
+</html>
